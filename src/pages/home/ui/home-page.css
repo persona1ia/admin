@@ -1,0 +1,9 @@
+.home-page {
+  max-width: 64rem;
+  margin-inline: auto;
+  padding: 3rem 1.5rem;
+}
+
+.home-page h1 {
+  margin-top: 0;
+}
