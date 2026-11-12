@@ -23,46 +23,48 @@ export function MediaPage({ usedImageIds = [] }: MediaPageProps) {
   const [dragging, setDragging] = useState(false)
   const input = useRef<HTMLInputElement>(null)
   const lightbox = useRef<HTMLDialogElement>(null)
+  const listRequest = useRef<AbortController | null>(null)
 
-  const load = useCallback(
-    (nextOffset = 0, signal?: AbortSignal) =>
-      request<{ media: MediaItem[] }>(
-        `/api/admin/media?limit=${pageSize}&offset=${nextOffset}`,
-        { signal },
-      )
-        .then(result => {
-          if (signal?.aborted) {
-            return
-          }
-          setError('')
-          setItems(previous =>
-            nextOffset
-              ? [
-                  ...new Map(
-                    [...previous, ...result.media].map(item => [item.id, item]),
-                  ).values(),
-                ]
-              : result.media,
+  const load = useCallback((nextOffset = 0) => {
+    listRequest.current?.abort()
+    const controller = new AbortController()
+    listRequest.current = controller
+    const { signal } = controller
+    return request<{ media: MediaItem[] }>(
+      `/api/admin/media?limit=${pageSize}&offset=${nextOffset}`,
+      { signal },
+    )
+      .then(result => {
+        if (signal.aborted) {
+          return
+        }
+        setItems(previous =>
+          nextOffset
+            ? [
+                ...new Map(
+                  [...previous, ...result.media].map(item => [item.id, item]),
+                ).values(),
+              ]
+            : result.media,
+        )
+        setOffset(nextOffset)
+        setMore(result.media.length === pageSize)
+      })
+      .catch((cause: unknown) => {
+        if (!signal.aborted) {
+          setError(
+            cause instanceof Error
+              ? cause.message
+              : 'Не удалось загрузить изображения',
           )
-          setOffset(nextOffset)
-          setMore(result.media.length === pageSize)
-        })
-        .catch((cause: unknown) => {
-          if (!signal?.aborted) {
-            setError(
-              cause instanceof Error
-                ? cause.message
-                : 'Не удалось загрузить изображения',
-            )
-          }
-        })
-        .finally(() => {
-          if (!signal?.aborted) {
-            setLoading(false)
-          }
-        }),
-    [],
-  )
+        }
+      })
+      .finally(() => {
+        if (!signal.aborted) {
+          setLoading(false)
+        }
+      })
+  }, [])
 
   function refresh(nextOffset = 0) {
     setLoading(true)
@@ -71,9 +73,8 @@ export function MediaPage({ usedImageIds = [] }: MediaPageProps) {
   }
 
   useEffect(() => {
-    const controller = new AbortController()
-    void load(0, controller.signal)
-    return () => controller.abort()
+    void load()
+    return () => listRequest.current?.abort()
   }, [load])
 
   useEffect(() => {

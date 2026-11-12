@@ -17,6 +17,43 @@ const available = await access(serverModule).then(
 )
 
 test(
+  'contact email validation agrees with the server schema',
+  { skip: available ? false : 'Build ../server first' },
+  async () => {
+    const { siteContentSchema } =
+      await import('../../server/dist/content/index.js')
+    const content = emptyContent()
+    for (const email of [
+      '',
+      'name@example.com',
+      'name+tag@example.com',
+      'name.surname@sub.example.org',
+      "o'hara@example.com",
+      'UPPER_CASE@example.com',
+      '.name@example.com',
+      'name..surname@example.com',
+      'name.@example.com',
+      'name@-example.com',
+      'name@example.c',
+      'name@exam_ple.com',
+      'name@example..com',
+      'name surname@example.com',
+      'name@example.com ',
+      'имя@example.com',
+      'name@пример.рф',
+      `${'a'.repeat(243)}@example.com`,
+    ]) {
+      content.site.contacts.email = email
+      assert.equal(
+        validateContent(content).length === 0,
+        siteContentSchema.safeParse(content).success,
+        email,
+      )
+    }
+  },
+)
+
+test(
   'admin client works with the neighboring server using an isolated in-memory database',
   { skip: available ? false : 'Build ../server first' },
   async t => {

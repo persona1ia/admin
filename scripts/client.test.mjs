@@ -82,6 +82,32 @@ test('publishing rejects dangling course references and duplicated IDs', () => {
   )
 })
 
+test('publishing identifies invalid contact emails before sending to the API', () => {
+  const content = emptyContent()
+  for (const email of [
+    '.name@example.com',
+    'name..surname@example.com',
+    'name.@example.com',
+    'name@-example.com',
+    'name@example.c',
+    'name@exam_ple.com',
+  ]) {
+    content.site.contacts.email = email
+    assert.ok(
+      validateContent(content).some(message => message.startsWith('Email:')),
+      email,
+    )
+  }
+  for (const email of [
+    '',
+    'name+tag@example.com',
+    'name.surname@sub.example.org',
+  ]) {
+    content.site.contacts.email = email
+    assert.deepEqual(validateContent(content), [], email)
+  }
+})
+
 test('publishing validates minor-unit prices and required content', () => {
   const content = emptyContent()
   const course = createCourse()
@@ -151,6 +177,44 @@ test('client reports proxy and network errors without losing HTTP status', async
   await assert.rejects(
     request('/api/admin/content'),
     error => error instanceof ApiError && error.code === 'NETWORK_ERROR',
+  )
+})
+
+test('client preserves cancellation while reading a response body', async t => {
+  const originalFetch = globalThis.fetch
+  t.after(() => {
+    globalThis.fetch = originalFetch
+  })
+  for (const status of [200, 400]) {
+    const cancelled = new DOMException('Cancelled', 'AbortError')
+    globalThis.fetch = async () =>
+      new Response(
+        new ReadableStream({
+          start(controller) {
+            controller.error(cancelled)
+          },
+        }),
+        { status },
+      )
+    await assert.rejects(
+      request('/api/admin/content'),
+      error => error === cancelled,
+    )
+  }
+})
+
+test('client preserves the caller cancellation reason', async t => {
+  const originalFetch = globalThis.fetch
+  t.after(() => {
+    globalThis.fetch = originalFetch
+  })
+  const cancelled = new Error('Page closed')
+  const controller = new AbortController()
+  controller.abort(cancelled)
+  globalThis.fetch = async (_url, options) => options.signal.throwIfAborted()
+  await assert.rejects(
+    request('/api/admin/content', { signal: controller.signal }),
+    error => error === cancelled,
   )
 })
 

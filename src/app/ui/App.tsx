@@ -144,10 +144,11 @@ export function App() {
         body: JSON.stringify({ password }),
       })
       const value = await getContent()
-      // Keep an expired session's draft and its original base revision for conflict detection
-      if (!draft || !saved) {
+      // Only unsaved edits need their original revision for conflict detection.
+      if (!dirty) {
         setSaved(value)
         setDraft(value.content)
+        setConflict(false)
       }
       setSession({ authenticated: true, passwordConfigured: true })
       setPassword('')
@@ -240,6 +241,9 @@ export function App() {
       setDraft(null)
       setSaved(null)
       setError('')
+      setConflict(false)
+      setNotice('')
+      setShowPassword(false)
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Не удалось выйти')
     } finally {

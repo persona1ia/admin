@@ -25,6 +25,20 @@ export function CourseEditor({
     (course.priceMinor / factor).toFixed(digits),
   )
   const [priceError, setPriceError] = useState('')
+  const [priceSource, setPriceSource] = useState({
+    currency: course.currency,
+    priceMinor: course.priceMinor,
+  })
+
+  // Reset text only for external changes, preserving partial input while typing.
+  if (
+    !Object.is(priceSource.priceMinor, course.priceMinor) ||
+    priceSource.currency !== course.currency
+  ) {
+    setPriceSource({ currency: course.currency, priceMinor: course.priceMinor })
+    setPrice((course.priceMinor / factor).toFixed(digits))
+    setPriceError('')
+  }
 
   useEffect(() => {
     current.current = { course, onChange, onUploadingChange }
@@ -126,10 +140,12 @@ export function CourseEditor({
       setPriceError(
         `Укажите неотрицательную цену${digits ? `, не более ${digits} знаков после запятой` : ' без дробной части'}`,
       )
+      setPriceSource({ priceMinor: Number.NaN, currency: course.currency })
       onChange({ ...course, priceMinor: Number.NaN })
       return
     }
     setPriceError('')
+    setPriceSource({ priceMinor: minor, currency: course.currency })
     onChange({ ...course, priceMinor: minor })
   }
 
@@ -206,6 +222,10 @@ export function CourseEditor({
                   Number.isFinite(amount) &&
                   Number.isSafeInteger(minor) &&
                   minor >= 0
+                setPriceSource({
+                  currency,
+                  priceMinor: valid ? minor : Number.NaN,
+                })
                 onChange({
                   ...course,
                   currency,

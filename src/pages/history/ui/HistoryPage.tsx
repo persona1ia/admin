@@ -32,7 +32,7 @@ export function HistoryPage({
 }: HistoryPageProps) {
   const [revisions, setRevisions] = useState<RevisionSummary[]>([])
   const [more, setMore] = useState(false)
-  const [loading, setLoading] = useState(true)
+  const [listState, setListState] = useState({ revision, loading: true })
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
@@ -40,47 +40,52 @@ export function HistoryPage({
   const [selected, setSelected] = useState<SavedContent | null>(null)
   const fileInput = useRef<HTMLInputElement>(null)
   const dialog = useRef<HTMLDialogElement>(null)
+  const listRequest = useRef<AbortController | null>(null)
+  const loading = listState.loading || listState.revision !== revision
 
   const load = useCallback(
-    (before?: number, signal?: AbortSignal) =>
-      request<{ revisions: RevisionSummary[] }>(
+    (before?: number) => {
+      listRequest.current?.abort()
+      const controller = new AbortController()
+      listRequest.current = controller
+      const { signal } = controller
+      return request<{ revisions: RevisionSummary[] }>(
         `/api/admin/revisions?limit=${pageSize}${before ? `&before=${before}` : ''}`,
         { signal },
       )
         .then(result => {
-          if (signal?.aborted) {
+          if (signal.aborted) {
             return
           }
-          setError('')
           setRevisions(previous =>
             before ? [...previous, ...result.revisions] : result.revisions,
           )
           setMore(result.revisions.length === pageSize)
         })
         .catch((cause: unknown) => {
-          if (!signal?.aborted) {
+          if (!signal.aborted) {
             setError(errorMessage(cause))
           }
         })
         .finally(() => {
-          if (!signal?.aborted) {
-            setLoading(false)
+          if (!signal.aborted) {
+            setListState({ revision, loading: false })
           }
-        }),
-    [],
+        })
+    },
+    [revision],
   )
 
   function refresh(before?: number) {
-    setLoading(true)
+    setListState({ revision, loading: true })
     setError('')
     return load(before)
   }
 
   useEffect(() => {
-    const controller = new AbortController()
-    void load(undefined, controller.signal)
-    return () => controller.abort()
-  }, [load, revision])
+    void load()
+    return () => listRequest.current?.abort()
+  }, [load])
 
   useEffect(() => {
     if (selected && !dialog.current?.open) {
@@ -145,7 +150,7 @@ export function HistoryPage({
       )
       const link = document.createElement('a')
       link.href = url
-      link.download = `persona1ia-revision-${id === 'current' ? revision : id}.json`
+      link.download = `persona1ia-revision-${id}.json`
       link.click()
       setTimeout(() => URL.revokeObjectURL(url), 1000)
     } catch (cause) {

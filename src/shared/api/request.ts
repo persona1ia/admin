@@ -67,6 +67,7 @@ export async function request<T>(
       credentials: 'same-origin',
     })
   } catch (error) {
+    options.signal?.throwIfAborted()
     if (error instanceof DOMException && error.name === 'AbortError') {
       throw error
     }
@@ -77,16 +78,30 @@ export async function request<T>(
     )
   }
 
-  if (!response.ok) {
-    let body: ApiErrorBody = {}
-    try {
-      const parsed: unknown = await response.json()
-      if (typeof parsed === 'object' && parsed !== null) {
-        body = parsed as ApiErrorBody
-      }
-    } catch {
-      // An upstream proxy may return an HTML or empty error response.
+  if (response.status === 204) {
+    return undefined as T
+  }
+  let parsed: unknown
+  try {
+    parsed = await response.json()
+  } catch (error) {
+    options.signal?.throwIfAborted()
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw error
     }
+    if (response.ok) {
+      throw new ApiError(
+        response.status,
+        'INVALID_RESPONSE',
+        'Сервер вернул неожиданный ответ. Проверьте подключение API',
+      )
+    }
+    // An upstream proxy may return an HTML or empty error response.
+  }
+
+  if (!response.ok) {
+    const body: ApiErrorBody =
+      typeof parsed === 'object' && parsed !== null ? parsed : {}
     const code = body.error ?? 'HTTP_ERROR'
     const fallback =
       response.status === 413
@@ -109,16 +124,5 @@ export async function request<T>(
     )
   }
 
-  if (response.status === 204) {
-    return undefined as T
-  }
-  try {
-    return (await response.json()) as T
-  } catch {
-    throw new ApiError(
-      response.status,
-      'INVALID_RESPONSE',
-      'Сервер вернул неожиданный ответ. Проверьте подключение API',
-    )
-  }
+  return parsed as T
 }

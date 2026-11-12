@@ -2,6 +2,9 @@ import type { SiteLink, SiteContent } from './types'
 
 const idPattern = /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,99}$/
 const mediaIdPattern = /^[a-f0-9]{64}$/
+// Match the API's z.email() schema; the integration test checks this contract.
+const emailPattern =
+  /^(?:[A-Za-z0-9_'+-]+\.)*[A-Za-z0-9_'+-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9-]*\.)+[A-Za-z]{2,}$/
 
 function isSafeUrl(value: string): boolean {
   if (!value || value.length > 2048) {
@@ -74,10 +77,7 @@ export function validateContent(content: SiteContent): string[] {
   text(content.site.contacts.phone, 100, 'Телефон')
   text(content.site.contacts.address, 1000, 'Адрес')
   const email = content.site.contacts.email
-  if (
-    email &&
-    (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
-  ) {
+  if (email && (email.length > 254 || !emailPattern.test(email))) {
     errors.push('Email: укажите корректный адрес электронной почты')
   }
   length(content.site.contacts.links, 50, 'Ссылки в контактах')
