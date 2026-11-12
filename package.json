@@ -1,7 +1,4 @@
 {
-  "name": "@persona1ia/admin",
-  "version": "0.0.0",
-  "private": true,
   "type": "module",
   "engines": {
     "node": ">=24 <25"
@@ -11,6 +8,8 @@
     "build": "npm run typecheck && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
+    "test": "node --experimental-strip-types --test --test-isolation=none scripts/client.test.mjs",
+    "test:integration": "node --experimental-strip-types --test --test-isolation=none scripts/api.integration.test.mjs",
     "lint": "eslint . --max-warnings 0",
     "lint:fix": "eslint . --fix",
     "format": "prettier . --write",

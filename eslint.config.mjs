@@ -10,7 +10,7 @@ import perfectionist from 'eslint-plugin-perfectionist'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig(
-  globalIgnores(['**/dist/', '**/node_modules/']),
+  globalIgnores(['**/dist/', '**/node_modules/', '**/.qa/']),
   {
     files: ['**/*.{js,mjs,ts,tsx}'],
     extends: [js.configs.recommended],
@@ -88,8 +88,8 @@ export default defineConfig(
     extends: [reactRefresh.configs.vite, reactHooks.configs.flat.recommended],
   },
   {
-    files: ['*.{js,mjs,ts}'],
     languageOptions: { globals: globals.node },
+    files: ['*.{js,mjs,ts}', 'scripts/**/*.mjs'],
   },
   prettierConfig,
   { rules: { curly: 'error' } },
